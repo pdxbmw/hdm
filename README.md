@@ -42,9 +42,13 @@ The application provides visual aids to help experts understand where they are i
 
 The calculations happen in several stages. When an expert submits a comparison, the application stores it in the database. Once an expert completes all required comparisons, the system marks their evaluation as complete and runs the AHP calculations for that expert's judgments.
 
+### Comparison Matrices
+
 For each set of comparisons at a given level, the system constructs a comparison matrix. If there are four criteria, for example, the matrix is 4x4, where each cell represents the comparison between two criteria. The diagonal is always 1 (an item compared to itself is equal), and the matrix is reciprocal, if criterion A is 3 times more important than B, then B is 1/3 as important as A.
 
 The AHPY library calculates the principal eigenvector of this matrix, which represents the priority weights. These weights sum to 1.0, representing the relative importance of each element. This calculation is performed separately for criteria comparisons, each set of subcriteria comparisons, and each set of alternative comparisons.
+
+### Local vs Global Weights
 
 To get from local weights to global weights, the system multiplies each element's local weight by its parent's global weight. So if a subcriterion has a local weight of 0.4 (40% importance within its parent criterion) and the parent criterion has a global weight of 0.3 (30% importance overall), the subcriterion's global weight is 0.12 (12% importance in the overall decision).
 
@@ -56,9 +60,17 @@ One of the critical features of AHP is consistency checking. Humans are not perf
 
 The consistency ratio measures how much inconsistency exists in a set of comparisons. The AHPY library calculates this by comparing the maximum eigenvalue of the comparison matrix to the matrix size. It then normalizes this against random consistency indices that Saaty derived empirically, essentially, what level of inconsistency would you expect from purely random comparisons.
 
-A consistency ratio below 0.10 is generally considered acceptable. Ratios between 0.10 and 0.20 are marginal, and anything above 0.20 suggests the expert should review their judgments. The application displays these ratios in the results, allowing researchers to assess the quality of each expert's judgments.
+The application displays these ratios in the results, allowing researchers to assess the quality of each expert's judgments. Here's how consistency ratios are typically interpreted:
+
+| Consistency Ratio | Interpretation | Action |
+|-------------------|----------------|--------|
+| < 0.10 | Acceptable | No action needed |
+| 0.10 - 0.20 | Marginal | Review recommended |
+| > 0.20 | Problematic | Expert should revise judgments |
 
 The application calculates consistency ratios at each level. There's a ratio for the criteria comparisons, separate ratios for each set of subcriteria comparisons, and ratios for alternative comparisons under each node. This granular approach helps identify exactly where inconsistencies occur, which is useful if an expert needs to revise their judgments.
+
+---
 
 ## Aggregating Multiple Expert Evaluations
 
@@ -72,15 +84,23 @@ The application displays each expert's individual results in a table, along with
 
 Beyond simple averaging, the application performs statistical tests to determine whether the experts' evaluations are significantly different from each other. This is done using a one-way ANOVA F-test.
 
-At its core, the F-test answers a fundamental question: when experts give different alternatives different scores, are those differences real and meaningful, or could they just be noise from experts disagreeing with each other? 
+### The Core Question
 
-Here's a simple analogy: imagine you asked 5 friends to rate their favorite ice cream flavors, chocolate, vanilla, and strawberry. Each friend gives each flavor a score. The question is: did chocolate actually win, or do your friends just disagree so much that the "winner" is meaningless? If all 5 friends gave chocolate scores of 9-10, vanilla scores of 5-6, and strawberry scores of 2-3, you can trust that chocolate really is the favorite. But if one friend gave chocolate a 2 and another gave it a 10, while they all agree vanilla is mediocre, the apparent winner might not mean anything. The F-test mathematically determines which scenario you have: reliable ranking with expert agreement, or unreliable ranking with too much disagreement.
+At its core, the F-test answers a fundamental question: when experts give different alternatives different scores, are those differences real and meaningful, or could they just be noise from experts disagreeing with each other?
+
+> **Simple Analogy:** Imagine you asked 5 friends to rate their favorite ice cream flavors, chocolate, vanilla, and strawberry. > Each friend gives each flavor a score. The question is: did chocolate actually win, or do your friends just disagree so much that the "winner" is meaningless? If all 5 friends gave chocolate scores of 9-10, vanilla scores of 5-6, and strawberry scores of 2-3, you can trust that chocolate really is the favorite. But if one friend gave chocolate a 2 and another gave it a 10, while they all agree vanilla is mediocre, the apparent winner might not mean anything.
+
+The F-test mathematically determines which scenario you have: reliable ranking with expert agreement, or unreliable ranking with too much disagreement.
+
+### How the F-Test Works
 
 To understand what the F-test does, consider an example with three alternatives being evaluated by five experts. Each expert gives each alternative a score. The question we're trying to answer is: are the differences between the alternatives' average scores meaningful, or could they just be random noise from experts disagreeing with each other?
 
 The F-test works by comparing two types of variation. The first is **between-group variation** (variation between alternatives): do the alternatives have genuinely different scores, or are they essentially the same? For instance, if Alternative A averages 0.45, Alternative B averages 0.35, and Alternative C averages 0.20, there's clear variation between the groups. The second type is **within-group variation** (variation among experts for the same alternative): do experts agree on that alternative's score, or is there disagreement? If all five experts gave Alternative A scores between 0.43 and 0.47, that's low within-group variation, the experts mostly agree. But if the scores ranged from 0.20 to 0.70, that's high within-group variation, the experts strongly disagree.
 
-Think of it this way: between-group variation is the signal (are the alternatives actually different?), and within-group variation is the noise (how much do experts disagree?). The F-test calculates a signal-to-noise ratio. High signal and low noise means we can trust the ranking. Low signal and high noise means the ranking could just be random.
+> **Key Insight:** Between-group variation is the signal (are the alternatives actually different?), and within-group variation is the noise (how much do experts disagree?). The F-test calculates a signal-to-noise ratio.
+
+### The Statistical Measures
 
 The test calculates these variations mathematically using several statistical measures:
 
@@ -92,17 +112,30 @@ The test calculates these variations mathematically using several statistical me
 
 **F-statistic** is the final ratio of between-group mean square divided by within-group mean square. This single number tells us how much bigger the variation between alternatives is compared to the variation among experts.
 
+### Interpreting the Results
+
 A high F-statistic is what we want. It means the differences between alternatives are large compared to the disagreement among experts. In our example, if Alternative A consistently scores higher than B and C across all experts, the F-statistic will be high. This tells us the ranking is reliable. A low F-statistic suggests experts disagree so much that we can't confidently say the alternatives are truly different from each other.
 
 The application also calculates the critical F-value at a 5% significance level using the F-distribution. This is the threshold for statistical significance. If the calculated F-statistic exceeds the critical value, we can say with 95% confidence that there are real differences between the alternatives. If it doesn't exceed the critical value, the apparent differences might just be due to random variation in expert judgments, and we shouldn't read too much into the ranking.
 
 The Results page presents this information in tables. There's an F-test table showing the sum of squares, degrees of freedom, mean squares, and F-statistic for both between-group and within-group sources of variation. There's also a table showing the critical F-value and related parameters. Researchers familiar with ANOVA will recognize this format immediately, and those less familiar can simply compare the F-statistic to the critical value: if F is greater than F-critical, the results are statistically significant.
 
+| Scenario | F-statistic | Interpretation |
+|----------|-------------|----------------|
+| High F (> F-critical) | Large between-group variation, small within-group variation | Reliable ranking, experts agree |
+| Low F (≤ F-critical) | Small between-group variation, large within-group variation | Unreliable ranking, too much disagreement |
+
+---
+
 ## Technical Implementation Choices
+
+### Framework and Architecture
 
 The application is built using Reflex, which is a relatively new Python framework for building web applications. I chose Reflex because it allows the entire application to be written in Python, including the user interface. This was appealing for a research-oriented application where the calculations are naturally done in Python using libraries like NumPy and SciPy.
 
 Reflex handles the complexity of frontend-backend communication through WebSockets, which enables real-time updates. When an expert completes their evaluation, for instance, the system immediately recalculates results and updates the display without requiring a page refresh. The framework uses a state-based architecture where UI components automatically re-render when the underlying state changes.
+
+### Database Design
 
 For data persistence, the application uses PostgreSQL with SQLModel as the ORM layer. SQLModel is a relatively new library that combines SQLAlchemy's database capabilities with Pydantic's type validation. Each model, expert, evaluation, and comparison weight is stored in the database with appropriate relationships and constraints.
 
@@ -112,6 +145,8 @@ One technical detail worth mentioning is the use of short alphanumeric IDs inste
 
 The application includes database migration support through Alembic. As the schema evolved during development, Alembic tracked the changes and can automatically update a production database to match the current schema. This was essential for iterative development where the data model needed refinement based on testing and feedback.
 
+---
+
 ## Authentication and Access Control
 
 User authentication is handled by Clerk, a third-party authentication service. This outsourcing of authentication was a deliberate choice, implementing secure authentication is complex and error-prone, and using a specialized service reduces security risks. The application uses passwordless authentication, Clerk sends one-time codes via email rather than requiring users to create and remember passwords. This approach reduces security risks associated with password management while providing a smooth user experience. Clerk also provides OAuth integration, which means users can sign in with existing accounts from providers like Google.
@@ -119,6 +154,8 @@ User authentication is handled by Clerk, a third-party authentication service. T
 The application identifies users by email address, which serves as the unique identifier. When a researcher creates a model, it's associated with their email. When experts are added to a model, they're identified by email as well. This approach works well for an academic context where email-based communication is standard.
 
 Access control is relatively straightforward. Researchers can only see and modify their own models. Experts can only access evaluation forms for models to which they've been explicitly added. The Results page is accessible to the model owner and shows aggregated results that protect individual expert confidentiality while allowing detailed analysis.
+
+---
 
 ## Deployment Architecture
 
@@ -131,6 +168,8 @@ Caddy serves as the reverse proxy, handling incoming HTTP requests and routing t
 The containerized application can be deployed to various platforms like Render, Railway, or cloud providers like Google Cloud Run. These platforms handle TLS termination, so the application itself doesn't need to manage SSL certificates. The database runs as a separate service, which is standard practice, you don't want your database inside your application container because data needs to persist independently.
 
 Environment variables configure things like database connection strings and API keys. This keeps sensitive information out of the codebase and allows the same container image to be deployed in different environments (development, staging, production) with different configurations.
+
+---
 
 ## Data Flow Through the Application
 
@@ -148,6 +187,8 @@ The AHPService processes the comparisons in hierarchical order - criteria first,
 
 When a researcher views the Results page, the system retrieves all completed ExpertJudgement records for the model and runs calculations for each one. It then aggregates the expert results, calculates summary statistics, and performs the F-test analysis. All of this computed data is packaged into state variables that the UI components access to render the tables and displays.
 
+---
+
 ## Challenges and Solutions
 
 Several technical challenges came up during development that required specific solutions. One was managing the state of the AHPY Compare objects. The library maintains some internal state indexed by object name, and if multiple Compare objects with the same name exist, it can cause conflicts. The solution was to append a unique identifier to every Compare object name, ensuring no collisions even when processing multiple evaluations simultaneously.
@@ -157,6 +198,8 @@ Another challenge was handling the flexible hierarchy structure. Models can have
 Database performance was a consideration, particularly for the Results page which needs to load many related records. The schema uses foreign key relationships with appropriate indexes, and the database queries are structured to minimize round trips. SQLModel's relationship loading helps by fetching related records efficiently.
 
 User interface challenges included making the evaluation form intuitive despite the mathematical complexity underneath. The slider interface for comparisons, progress indicators, and tree visualization all contribute to making the process clearer. The help dialog provides context about AHP methodology for users who need it.
+
+---
 
 ## Future Considerations
 
@@ -169,6 +212,8 @@ The aggregation method could be made configurable. While arithmetic mean is curr
 Testing coverage could be expanded. The application currently relies on manual testing and database constraints for validation. Comprehensive unit tests for calculation logic, integration tests for database operations, and end-to-end tests for user workflows would increase confidence in the system's correctness.
 
 Performance optimization for very large models would be beneficial. The current implementation handles typical research models (tens of criteria and alternatives) well, but models with hundreds of elements might encounter performance issues in the matrix calculations. Caching intermediate results and optimizing query patterns could address this.
+
+---
 
 ## Conclusion
 
