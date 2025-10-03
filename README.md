@@ -10,6 +10,33 @@
 
 This document provides a detailed overview of the HDM web application, explaining what it does, how it works, and the technical decisions made during development. The application is designed to support hierarchical decision modeling research using the Analytic Hierarchy Process methodology.
 
+## Table of Contents
+
+- [What This Application Does](#what-this-application-does)
+- [The Decision Modeling Process](#the-decision-modeling-process)
+- [How Users Interact with the Application](#how-users-interact-with-the-application)
+- [Understanding the Calculations](#understanding-the-calculations)
+  - [Comparison Matrices](#comparison-matrices)
+  - [Local vs Global Weights](#local-vs-global-weights)
+- [Consistency Checking](#consistency-checking)
+- [Aggregating Multiple Expert Evaluations](#aggregating-multiple-expert-evaluations)
+- [Statistical Analysis](#statistical-analysis)
+  - [The Core Question](#the-core-question)
+  - [How the F-Test Works](#how-the-f-test-works)
+  - [The Statistical Measures](#the-statistical-measures)
+  - [Interpreting the Results](#interpreting-the-results)
+- [Technical Implementation Choices](#technical-implementation-choices)
+  - [Framework and Architecture](#framework-and-architecture)
+  - [Database Design](#database-design)
+- [Authentication and Access Control](#authentication-and-access-control)
+- [Deployment Architecture](#deployment-architecture)
+- [Data Flow Through the Application](#data-flow-through-the-application)
+- [Challenges and Solutions](#challenges-and-solutions)
+- [Future Considerations](#future-considerations)
+- [Conclusion](#conclusion)
+
+---
+
 ## What This Application Does
 
 The HDM application helps researchers conduct multi-criteria decision analysis by breaking down complex decisions into manageable parts. When researchers need to evaluate alternatives against multiple criteria, they can use this application to structure the problem, collect expert judgments, and analyze the results statistically.
